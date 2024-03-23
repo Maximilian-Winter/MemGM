@@ -124,15 +124,15 @@ class MessagesFormatter:
 main_model = LlamaCppEndpointSettings(completions_endpoint_url="http://127.0.0.1:8080/completion")
 
 SYS_PROMPT_START_CHATML = """### Instructions:\n"""
-SYS_PROMPT_END_CHATML = """\n"""
+SYS_PROMPT_END_CHATML = """\n\n"""
 USER_PROMPT_START_CHATML = """### Player Character Elysia Thunderscribe:\n"""
-USER_PROMPT_END_CHATML = """\n"""
+USER_PROMPT_END_CHATML = """\n\n"""
 FUNCTION_CALL_PROMPT_START_CHATML = """### Function Call:\n"""
-FUNCTION_CALL_PROMPT_END_CHATML = """\n"""
+FUNCTION_CALL_PROMPT_END_CHATML = """\n\n"""
 ASSISTANT_PROMPT_START_CHATML = """### Game Master:\n"""
-ASSISTANT_PROMPT_END_CHATML = """\n"""
+ASSISTANT_PROMPT_END_CHATML = """\n\n"""
 FUNCTION_PROMPT_START_CHATML = """### Function Call Result:\n"""
-FUNCTION_PROMPT_END_CHATML = """\n"""
+FUNCTION_PROMPT_END_CHATML = """\n\n"""
 DEFAULT_CHATML_STOP_SEQUENCES = ["### Player", "### Function Call:", "<Player Response>", "<Waiting for Player Input>", "### Way of Thought", "### Game Master:", "(Activate_message_mode off)", "### Function Call Result:", "Function Call:", "<|im_end|>", "### Elysia Thunderscribe:"]
 
 custom_chat_ml_formatter = MessagesFormatter("", SYS_PROMPT_START_CHATML, SYS_PROMPT_END_CHATML,
