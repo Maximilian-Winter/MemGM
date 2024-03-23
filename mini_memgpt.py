@@ -121,59 +121,11 @@ class MessagesFormatter:
         else:
             return formatted_messages + self.USER_PROMPT_START, "user"
 
-    def save(self, file_path: str):
-        """
-        Saves the messages formatter configuration to a file.
-
-        Args:
-           file_path (str): The file path to save the configuration.
-        """
-        with open(file_path, 'w', encoding="utf-8") as file:
-            json.dump(self.as_dict(), file, indent=4)
-
-    @staticmethod
-    def load_from_file(file_path: str) -> "MessagesFormatter":
-        """
-        Loads a messages formatter configuration from a file.
-
-        Args:
-            file_path (str): The file path to load the configuration from.
-
-        Returns:
-            MessagesFormatter: Loaded messages formatter.
-        """
-        with open(file_path, 'r', encoding="utf-8") as file:
-            loaded_messages_formatter = json.load(file)
-            return MessagesFormatter(**loaded_messages_formatter)
-
-    @staticmethod
-    def load_from_dict(loaded_messages_formatter: dict) -> "MessagesFormatter":
-        """
-        Creates a messages formatter from a dictionary.
-
-        Args:
-            loaded_messages_formatter (dict): Dictionary representing the messages formatter.
-
-        Returns:
-            MessagesFormatter: Created messages formatter.
-        """
-        return MessagesFormatter(**loaded_messages_formatter)
-
-    def as_dict(self) -> dict:
-        """
-        Converts the messages formatter to a dictionary.
-
-        Returns:
-            dict: Dictionary representation of the messages formatter.
-        """
-        return self.__dict__
-
-
 main_model = LlamaCppEndpointSettings(completions_endpoint_url="http://127.0.0.1:8080/completion")
 
 SYS_PROMPT_START_CHATML = """### Instructions:\n"""
 SYS_PROMPT_END_CHATML = """\n"""
-USER_PROMPT_START_CHATML = """### Elysia Thunderscribe:\n"""
+USER_PROMPT_START_CHATML = """### Player Character Elysia Thunderscribe:\n"""
 USER_PROMPT_END_CHATML = """\n"""
 FUNCTION_CALL_PROMPT_START_CHATML = """### Function Call:\n"""
 FUNCTION_CALL_PROMPT_END_CHATML = """\n"""
