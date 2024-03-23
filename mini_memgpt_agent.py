@@ -70,7 +70,7 @@ You are assigned the role of Game Master in a traditional pen-and-paper role-pla
 Core memory shown below (limited in size, additional information stored in archival / recall memory):
 Last modified: {last_modified}
 
-{iam_content}"""
+{iam_content}""".strip()
 
 
 class activate_message_mode(BaseModel):
@@ -94,7 +94,7 @@ class activate_message_mode(BaseModel):
              "iam_content": agent.core_memory.get_core_memory_manager().build_core_memory_context(),
              "current_date_time": datetime.datetime.now().strftime("%d/%m/%Y, %H:%M:%S"),
              "ckv_count": agent.retrieval_memory.retrieval_memory.collection.count(),
-             "imb_count": len(query)})
+             "imb_count": len(query)}).strip()
 
         result = agent.llama_cpp_agent.get_chat_response(system_prompt=system_prompt, role="assistant",
                                                          # function_tool_registry=agent.function_tool_registry,
@@ -187,7 +187,7 @@ class MiniMemGptAgent:
              "iam_content": self.core_memory.get_core_memory_manager().build_core_memory_context(),
              "current_date_time": datetime.datetime.now().strftime("%d/%m/%Y, %H:%M:%S"),
              "ckv_count": self.retrieval_memory.retrieval_memory.collection.count(),
-             "imb_count": len(query)})
+             "imb_count": len(query)}).strip()
 
         result = self.llama_cpp_agent.get_chat_response(system_prompt=system_prompt,
                                                         function_tool_registry=self.function_tool_registry,
@@ -217,7 +217,7 @@ class MiniMemGptAgent:
                      "iam_content": self.core_memory.get_core_memory_manager().build_core_memory_context(),
                      "current_date_time": datetime.datetime.now().strftime("%d/%m/%Y, %H:%M:%S"),
                      "ckv_count": self.retrieval_memory.retrieval_memory.collection.count(),
-                     "imb_count": len(query)})
+                     "imb_count": len(query)}).strip()
 
                 result = self.llama_cpp_agent.get_chat_response(system_prompt=system_prompt,
                                                                 function_tool_registry=self.function_tool_registry,
