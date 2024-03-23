@@ -83,3 +83,11 @@ class EventMemoryManager:
             formatted_events += f"\n\nPage {page} of {query.count() // page_size + 1}"
 
         return formatted_events if formatted_events else "No recall memories found matching the query."
+
+    def save_event_queue(self, filepath):
+            with open(filepath, 'w') as file:
+                json.dump([event.to_dict() for event in self.event_queue], file)
+
+    def load_event_queue(self, filepath):
+        with open(filepath, 'r') as file:
+            self.event_queue = [Event.from_dict(event_dict) for event_dict in json.load(file)]

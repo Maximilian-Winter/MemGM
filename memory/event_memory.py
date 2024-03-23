@@ -1,3 +1,5 @@
+import datetime
+
 from sqlalchemy import Column, Integer, Text, DateTime, Enum
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -36,4 +38,19 @@ class Event(Base):
         keywords.append(keyword)
         self.event_keywords = json.dumps(keywords)
 
+    def to_dict(self):
+        return {
+            "event_type": self.event_type.value,
+            "timestamp": self.timestamp.isoformat(),
+            "content": self.content,
+            "metadata": self.metadata
+        }
 
+    @staticmethod
+    def from_dict(data):
+        return Event(
+            event_type=data["event_type"],
+            timestamp=datetime.datetime.fromisoformat(data["timestamp"]),
+            content=data["content"],
+            metadata=data["metadata"]
+        )
