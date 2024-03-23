@@ -104,8 +104,6 @@ class activate_message_mode(BaseModel):
                                                          temperature=1.25, repeat_penalty=1.0, repeat_last_n=512,
                                                          min_p=0.1, tfs_z=0.975, penalize_nl=False,
                                                          samplers=["tfs_z", "min_p", "temperature"], )
-        agent.event_memory.get_event_memory_manager().add_event_to_queue(EventType.AgentMessage,
-                                                                         agent.llama_cpp_agent.last_response, {})
         print("Message: " + result)
 
 
