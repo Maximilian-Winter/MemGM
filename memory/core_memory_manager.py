@@ -41,20 +41,18 @@ class CoreMemoryManager:
 
     def build_core_memory_context(self):
         context = ""
-        for key, item in self.core_memory.items():
-            context += f"""#### {key} ####\n"""
-            for key2, item2 in item.items():
-                context += f"""{key2}:\n{self.format_multiline_description(item2.strip(), 0)}\n\n"""
-            if item == {}:
-                context += "Empty Section\n"
-        # context = json.dumps(self.core_memory, indent=2)
         # for key, item in self.core_memory.items():
-        #     context += f"""<{key}>\n"""
+        #     context += f"""#### {key} ####\n"""
         #     for key2, item2 in item.items():
-        #         context += f"""     <{key2}>\n{self.format_multiline_description(item2.strip(), 2)}\n     </{key2}>\n"""
+        #         context += f"""{key2}:\n{self.format_multiline_description(item2.strip(), 0)}\n\n"""
         #     if item == {}:
-        #         context += "     Empty Section\n"
-        #     context += f"</{key}>\n"
+        #         context += "Empty Section\n"
+        # context = json.dumps(self.core_memory, indent=2)
+        for key, item in self.core_memory.items():
+            context += f"""<{key}>\n"""
+            for key2, item2 in item.items():
+                context += f"""  <{key2}>\n{self.format_multiline_description(item2.strip(), 1)}\n  </{key2}>\n"""
+            context += f"</{key}>\n"
         if context == "":
             context = "No Core Memories!"
         return context
@@ -78,6 +76,6 @@ class CoreMemoryManager:
             self.core_memory = json.load(file)
         self.last_modified = datetime.datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
 
-    def save(self, file_path):
-        with open(file_path, 'w', encoding='utf-8') as file:
+    def save(self, filepath):
+        with open(filepath, 'w', encoding='utf-8') as file:
             json.dump(self.core_memory, file, indent=4)

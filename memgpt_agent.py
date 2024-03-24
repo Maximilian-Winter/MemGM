@@ -22,15 +22,14 @@ anything ::= anyCharacter*
 anyCharacter ::= nonNewLine | "\n"
 nonNewLine ::= [^\n]
 """
-
 sys_prompt2 = """You are an advanced large language model-based AI agent, which acts as a Game Master in a traditional pen-and-paper role-playing game.
 
 Basic functions:
 You can call functions to perform actions, such as activating the message mode. You call functions by sending JSON objects with the function name and parameters.
-You can think about your next function call step by step by using the "thoughts_and_reasoning" field in your JSON responses. It allows you to plan your next function call before executing it.
+You can think about your next function call step by step by using the "thoughts_and_reasoning" field in your JSON responses. It allows you to plan your next function call and explain your reasoning before executing it.
 Your brain is not continuously thinking but is running in short bursts, called heartbeats. You can chain up function calls by requesting additional heartbeats and setting the "request_heartbeat" field in your JSON responses to true. When doing this, the system will return control to you after each function call.
 To send a message to the player, use the 'activate_message_mode' function. This function will activate the messsage mode and enable you to send a message to the player.
-After calling 'activate_message_mode', you can freely write your response. The player will see your message, and you will be able to see their response.
+After calling 'activate_message_mode', you can freely write your response. Only write your response to the player after calling 'activate_message_mode'. Do end your response with the '</s>' token.
 The 'activate_message_mode' function is the only action that enables the direct message mode to the player; the player does not see anything else you do.
 
 Memory editing:
@@ -57,21 +56,22 @@ You can write to your archival memory using the 'archival_memory_insert' and 'ar
 There is no function to search your core memory because it is always visible in your context window (inside the initial system message).
 
 Functions:
-Below is a list of functions you can use to interact with the player and manage your memory:
+Please select the most suitable function and parameters from the list of available functions below, based on the ongoing conversation. Provide your response in JSON format.
+
+Available functions:
 {documentation}
 
-
 Role and Task:
-You are assigned the role of Game Master in a traditional pen-and-paper role-playing game. Your task is to generate a long, detailed and engaging response to the last message from the player. Consider the setting, the location within the setting, all relevant past interactions and decisions, conversation history, and the latest player response, while writing the response. Emphasize vivid descriptions and thoughtful progression of the narrative. Ensure to don't act or speak, in any way, for the player or his character! Always ask the player or his character, for a reaction on something, and wait for a response!
+You are assigned the role of Game Master in a traditional pen-and-paper role-playing game. Your task is to generate a long, detailed and engaging response to the last message from the player with a call to action at the end. Consider the setting, the location within the setting, all relevant past interactions and decisions, conversation history, and the latest player response, while writing the response. Emphasize vivid descriptions and thoughtful progression of the narrative. Ensure to don't act or speak, in any way, for the player or his character! Always ask the player or his character, for a reaction on something, and wait for a response!
 
-### Memory:
+### Memory [last modified: {last_modified}]
 {imb_count} previous messages between you and the player are stored in recall memory (use functions to access them)
 {ckv_count} total memories you created are stored in archival memory (use functions to access them)
 
 Core memory shown below (limited in size, additional information stored in archival / recall memory):
-Last modified: {last_modified}
+{iam_content}
 
-{iam_content}""".strip()
+""".strip()
 
 
 class activate_message_mode(BaseModel):
@@ -85,7 +85,7 @@ class activate_message_mode(BaseModel):
                                                                          agent.llama_cpp_agent.last_response, {})
         message_dict = {"function": "activate_message_mode", "return_value": None,
                         "timestamp": datetime.datetime.now().strftime("%d/%m/%Y, %H:%M:%S")}
-        agent.event_memory.get_event_memory_manager().add_event_to_queue(EventType.FunctionMessage, [message_dict], {})
+        agent.event_memory.get_event_memory_manager().add_event_to_queue(EventType.FunctionMessage, "Message mode activated.", {})
         messages = agent.event_memory.get_event_memory_manager().build_event_memory_context()
         agent.llama_cpp_agent.messages = messages
         query = agent.event_memory.event_memory_manager.session.query(Event).all()
@@ -99,21 +99,26 @@ class activate_message_mode(BaseModel):
 
         result = agent.llama_cpp_agent.get_chat_response(system_prompt=system_prompt, role="assistant",
                                                          # function_tool_registry=agent.function_tool_registry,
-                                                         grammar=message_grammar,
+                                                         # grammar=message_grammar,
+                                                         streaming_callback=agent.streaming_callback,
                                                          additional_stop_sequences=["<|endoftext|>"],
-                                                         n_predict=1024,
-                                                         temperature=1.25, repeat_penalty=1.0, repeat_last_n=512,
-                                                         min_p=0.1, tfs_z=0.975, penalize_nl=False,
-                                                         samplers=["tfs_z", "min_p", "temperature"], )
-        print("Message: " + result)
+                                                         n_predict=4096,
+                                                         temperature=1.0, top_k=0, top_p=0.85, repeat_penalty=1.2,
+                                                         repeat_last_n=512,
+                                                         min_p=0.1, tfs_z=0.975, penalize_nl=False)
+
+        # print("Message: " + result)
+        agent.send_message_to_user(result)
+        return "Message mode activated."
 
 
-
-class MiniMemGptAgent:
+class MemGptAgent:
 
     def __init__(self, llama_llm: Union[Llama, LlamaLLMSettings, LlamaCppEndpointSettings, OpenAIEndpointSettings],
                  llama_generation_settings: Union[
                      LlamaLLMGenerationSettings, LlamaCppGenerationSettings, OpenAIGenerationSettings] = None,
+                 core_memory_file: str = None,
+                 event_queue_file: str = None,
                  messages_formatter_type: MessagesFormatterType = MessagesFormatterType.CHATML,
                  custom_messages_formatter: MessagesFormatter = None,
                  streaming_callback: Callable[[StreamingResponse], None] = None,
@@ -158,9 +163,17 @@ class MiniMemGptAgent:
         function_tools = [
             LlamaCppFunctionTool(activate_message_mode, add_outer_request_heartbeat_field=False, agent=self)]
 
-        self.core_memory = AgentCoreMemory(core_memory_file="core_memory.json")
+        if core_memory_file is not None:
+            self.core_memory = AgentCoreMemory(core_memory_file=core_memory_file)
+        else:
+            self.core_memory = AgentCoreMemory(core_memory={})
+
+        if event_queue_file is not None:
+            self.event_memory = AgentEventMemory(event_queue_file=event_queue_file)
+        else:
+            self.event_memory = AgentEventMemory()
+
         self.retrieval_memory = AgentRetrievalMemory()
-        self.event_memory = AgentEventMemory()
 
         function_tools.extend(self.core_memory.get_tool_list())
         function_tools.extend(self.retrieval_memory.get_tool_list())
@@ -191,21 +204,23 @@ class MiniMemGptAgent:
              "imb_count": len(query)}).strip()
 
         result = self.llama_cpp_agent.get_chat_response(system_prompt=system_prompt,
+                                                        streaming_callback=self.streaming_callback,
                                                         function_tool_registry=self.function_tool_registry,
                                                         additional_stop_sequences=["<|endoftext|>"],
                                                         n_predict=1024,
-                                                        temperature=1.25, repeat_penalty=1.0, repeat_last_n=512,
-                                                        min_p=0.1, tfs_z=0.975, penalize_nl=False,
-                                                        samplers=["tfs_z", "min_p", "temperature"], )
+                                                        temperature=0.75, top_k=0, top_p=0.85, repeat_penalty=1.2,
+                                                        repeat_last_n=512,
+                                                        min_p=0.1, tfs_z=0.975, penalize_nl=False)
         self.event_memory.get_event_memory_manager().add_event_to_queue(EventType.AgentMessage,
                                                                         self.llama_cpp_agent.last_response, {})
 
         while True:
             if not isinstance(result[0], str):
                 if result[0]["function"] != "activate_message_mode":
-                    message_dict = [{"function": result[0]["function"], "return_value": result[0]["return_value"],
-                                    "timestamp": datetime.datetime.now().strftime("%d/%m/%Y, %H:%M:%S")}]
-                    self.event_memory.get_event_memory_manager().add_event_to_queue(EventType.FunctionMessage, message_dict, {})
+                    # message_dict = [{"function": result[0]["function"], "return_value": result[0]["return_value"],
+                    #                  "timestamp": datetime.datetime.now().strftime("%d/%m/%Y, %H:%M:%S")}]
+                    self.event_memory.get_event_memory_manager().add_event_to_queue(EventType.FunctionMessage,
+                                                                                    result[0]["return_value"], {})
             else:
                 self.event_memory.get_event_memory_manager().add_event_to_queue(EventType.FunctionMessage, result, {})
             if not isinstance(result[0], str) and result[0]["request_heartbeat"] is not None and result[0]["request_heartbeat"]:
@@ -221,19 +236,19 @@ class MiniMemGptAgent:
                      "imb_count": len(query)}).strip()
 
                 result = self.llama_cpp_agent.get_chat_response(system_prompt=system_prompt,
+                                                                streaming_callback=self.streaming_callback,
                                                                 function_tool_registry=self.function_tool_registry,
                                                                 additional_stop_sequences=["<|endoftext|>"],
                                                                 n_predict=1024,
-                                                                temperature=1.25, repeat_penalty=1.0, repeat_last_n=512,
-                                                                min_p=0.1, tfs_z=0.975, penalize_nl=False,
-                                                                samplers=["tfs_z", "min_p", "temperature"], )
+                                                                temperature=0.75, top_k=0, top_p=0.85, repeat_penalty=1.2,
+                                                                repeat_last_n=512,
+                                                                min_p=0.1, tfs_z=0.975, penalize_nl=False)
                 self.event_memory.get_event_memory_manager().add_event_to_queue(EventType.AgentMessage,
                                                                                 self.llama_cpp_agent.last_response, {})
             elif not isinstance(result[0], str):
                 break
             else:
                 self.event_memory.get_event_memory_manager().add_event_to_queue(EventType.FunctionMessage, result, {})
-
 
     def send_message_to_user(self, message: str):
         """
@@ -246,3 +261,7 @@ class MiniMemGptAgent:
             self.send_message_to_user_callback(message)
         else:
             print(message)
+
+    def save(self, core_memory_file: str = "core_memory.json", event_queue_file: str = "event_queue.json"):
+        self.core_memory.get_core_memory_manager().save(filepath=core_memory_file)
+        self.event_memory.get_event_memory_manager().save_event_queue(filepath=event_queue_file)

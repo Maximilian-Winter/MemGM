@@ -1,11 +1,9 @@
 import json
 from typing import List, Dict, Tuple
 
-from llama_cpp import Llama
-
 from llama_cpp_agent.messages_formatter import MessagesFormatterType
 from llama_cpp_agent.providers.llama_cpp_endpoint_provider import LlamaCppEndpointSettings
-from mini_memgpt_agent import MiniMemGptAgent
+from memgpt_agent import MemGptAgent
 
 
 class MessagesFormatter:
@@ -93,7 +91,8 @@ class MessagesFormatter:
                 if self.STRIP_PROMPT:
                     message["content"] = message["content"].strip()
                 if message["content"].strip().startswith("{"):
-                    formatted_messages += self.FUNCTION_CALL_PROMPT_START + message["content"] + self.FUNCTION_CALL_PROMPT_END
+                    formatted_messages += self.FUNCTION_CALL_PROMPT_START + message[
+                        "content"] + self.FUNCTION_CALL_PROMPT_END
                 else:
                     formatted_messages += self.ASSISTANT_PROMPT_START + message["content"] + self.ASSISTANT_PROMPT_END
                 last_role = "assistant"
@@ -121,31 +120,32 @@ class MessagesFormatter:
         else:
             return formatted_messages + self.USER_PROMPT_START, "user"
 
+
 main_model = LlamaCppEndpointSettings(completions_endpoint_url="http://127.0.0.1:8080/completion")
 
-SYS_PROMPT_START_CHATML = """### Instructions:\n"""
-SYS_PROMPT_END_CHATML = """\n\n"""
-USER_PROMPT_START_CHATML = """### Player Character Elysia Thunderscribe:\n"""
-USER_PROMPT_END_CHATML = """\n\n"""
-FUNCTION_CALL_PROMPT_START_CHATML = """### Function Call:\n"""
-FUNCTION_CALL_PROMPT_END_CHATML = """\n\n"""
-ASSISTANT_PROMPT_START_CHATML = """### Game Master:\n"""
-ASSISTANT_PROMPT_END_CHATML = """\n\n"""
-FUNCTION_PROMPT_START_CHATML = """### Function Call Result:\n"""
-FUNCTION_PROMPT_END_CHATML = """\n\n"""
-DEFAULT_CHATML_STOP_SEQUENCES = ["### Player", "### Function Call:", "<Player Response>", "<Waiting for Player Input>", "### Way of Thought", "### Game Master:", "(Activate_message_mode off)", "### Function Call Result:", "Function Call:", "<|im_end|>", "### Elysia Thunderscribe:"]
+SYS_PROMPT_START_CHATML = """<|im_start|>system\n"""
+SYS_PROMPT_END_CHATML = """<|im_end|>\n"""
+USER_PROMPT_START_CHATML = """<|im_start|>user\n"""
+USER_PROMPT_END_CHATML = """<|im_end|>\n"""
+ASSISTANT_PROMPT_START_CHATML = """<|im_start|>assistant\n"""
+ASSISTANT_PROMPT_END_CHATML = """<|im_end|>\n"""
+FUNCTION_PROMPT_START_CHATML = """<|im_start|>tool\n"""
+FUNCTION_PROMPT_END_CHATML = """<|im_end|>\n"""
+DEFAULT_CHATML_STOP_SEQUENCES = ["<|im_end|>"]
 
 custom_chat_ml_formatter = MessagesFormatter("", SYS_PROMPT_START_CHATML, SYS_PROMPT_END_CHATML,
                                              USER_PROMPT_START_CHATML,
                                              USER_PROMPT_END_CHATML, ASSISTANT_PROMPT_START_CHATML,
-                                             ASSISTANT_PROMPT_END_CHATML,FUNCTION_CALL_PROMPT_START_CHATML, FUNCTION_CALL_PROMPT_END_CHATML, False, DEFAULT_CHATML_STOP_SEQUENCES, False,
+                                             ASSISTANT_PROMPT_END_CHATML, ASSISTANT_PROMPT_START_CHATML,
+                                             ASSISTANT_PROMPT_END_CHATML, False, DEFAULT_CHATML_STOP_SEQUENCES,
+                                             False,
                                              FUNCTION_PROMPT_START_CHATML, FUNCTION_PROMPT_END_CHATML)
 
-llama_cpp_agent = MiniMemGptAgent(main_model, debug_output=True,
-                                  custom_messages_formatter=custom_chat_ml_formatter,
-                                  # messages_formatter_type=MessagesFormatterType.CHATML
-                                  )
+mem_gpt_agent = MemGptAgent(main_model, debug_output=True, core_memory_file="core_memory.json",
+                            custom_messages_formatter=custom_chat_ml_formatter)
 
 while True:
     user_input = input(">")
-    llama_cpp_agent.get_response(user_input)
+
+    mem_gpt_agent.get_response(user_input)
+    mem_gpt_agent.save()
